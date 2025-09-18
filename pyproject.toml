@@ -1,0 +1,26 @@
+[project]
+name = "geospot"
+version = "0.1.20250918"
+description = "AI location scout: rank neighborhoods for a new brick-and-mortar business using public data."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "Ankit Hemant Lade"}
+]
+dependencies = [
+    "requests>=2.32.0",
+    "python-dotenv>=1.0.1",
+    "fastapi>=0.111.0",
+    "uvicorn>=0.30.0",
+]
+
+[project.scripts]
+geospot = "geospot.cli:app"
+geospot-api = "geospot.server:serve"
+
+[tool.uv]
+# uv-specific settings (optional)
+
+[tool.ruff]
+line-length = 100
+

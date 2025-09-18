@@ -1,0 +1,21 @@
+
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Env and caches
+.venv/
+.uv/
+.env
+.DS_Store
+
+# Artifacts
+geospot_report.json
+geospot_briefing.mp3
