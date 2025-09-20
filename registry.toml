@@ -1,0 +1,11 @@
+# Registry for GeoSpot Multi-Agent System
+# Points to individual coral-agent.toml files for each agent
+
+[[local-agent]]
+path = "agents/orchestrator"
+
+[[local-agent]]
+path = "agents/data_analyzer"
+
+[[local-agent]]
+path = "agents/content_generator"

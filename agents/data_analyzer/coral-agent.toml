@@ -1,0 +1,16 @@
+[agent]
+name = "geospot-data-analyzer"
+version = "0.1.0"
+description = "GeoSpot data analyzer that fetches location data, demographics, and scores neighborhoods"
+
+[options.MODEL_API_KEY]
+type = "string"
+description = "AIML API key for LLM access"
+
+[options.CENSUS_API_KEY]
+type = "string"
+description = "US Census API key (optional)"
+default = ""
+
+[runtimes.executable]
+command = ["uv", "run", "python", "main.py"]
