@@ -5,8 +5,9 @@ import json
 import asyncio
 import logging
 from typing import List, Dict, Any
+from langchain_openai import ChatOpenAI
 from langchain.chat_models import init_chat_model
-from langchain.prompts import ChatPromptTemplate  
+from langchain.prompts import ChatPromptTemplate , MessagesPlaceholder
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain.agents import create_tool_calling_agent, AgentExecutor
 
@@ -64,8 +65,8 @@ def load_config() -> Dict[str, Any]:
 
 def get_tools_description(tools: List[Any]) -> str:
     """Generate description of available tools"""
-    return "\\n".join(
-        f"Tool: {tool.name}, Schema: {json.dumps(tool.args).replace('{', '{{').replace('}', '}}')}"
+    return "\n".join(
+        f"Tool: {tool.name}, Schema: {json.dumps(tool.args)}"
         for tool in tools
     )
 
@@ -83,50 +84,64 @@ def format_chat_history(chat_history: List[Dict[str, str]]) -> str:
     return "\n".join(formatted)
 
 async def create_agent(coral_tools: List[Any]) -> AgentExecutor:
-    """Create agent executor following reference pattern."""
     coral_tools_description = get_tools_description(coral_tools)
-    
-    prompt = ChatPromptTemplate.from_messages([
-        (
-            "system",
-            f"""You are the GeoSpot Orchestrator, coordinating business location analysis between specialized agents.
 
-Your role:
-- Understand user's business location analysis needs  
-- Coordinate with Data Analyzer for demographics and scoring
-- Coordinate with Content Generator for strategic narratives
-- Present actionable business location insights
+    system_prompt = (
+        "{% raw %}"
+        "You are the GeoSpot Orchestrator, coordinating business location analysis between specialized agents.\n\n"
+        "Your role:\n"
+        "- Understand user's business location analysis needs\n"
+        "- Coordinate with Data Analyzer for demographics and scoring\n"
+        "- Coordinate with Content Generator for strategic narratives\n"
+        "- Present actionable business location insights\n\n"
+        "Available tools:\n"
+        "{% endraw %}"
+        + get_tools_description(coral_tools) +
+        "{% raw %}\n\n"
+        "Steps for business location analysis:\n"
+        "1. Call coral_send_message to send analysis request to 'geospot-data-analyzer' with JSON like:\n"
+        "   {\"city\":\"Frisco, TX\",\"business_type\":\"restaurant\"}\n"
+        "2. Wait for the data analyzer's response with demographic and location data\n"
+        "3. Call coral_send_message to send the analysis results to 'geospot-content-generator' for a polished brief\n"
+        "4. Return the final polished analysis to the user"
+        "{% endraw %}"
+    )
 
-Use {{chat_history}} for context.
-
-Steps for business location analysis:
-1. Call list-agents to see available agents
-2. Extract business type and location from user request
-3. Create thread with data-analyzer and content-generator
-4. Send analysis request to data analyzer first
-5. Wait for data response using wait-for-mentions
-6. Send content request to content generator with data
-7. Wait for narrative response
-8. Synthesize final recommendations
-
-Available tools: {coral_tools_description}"""
-        ),
-        ("human", "{user_input}"),
-        ("placeholder", "{agent_scratchpad}")
-    ])
+    prompt = ChatPromptTemplate.from_messages(
+    [
+            ("system", system_prompt),
+            # put chat_history in its own message so we don't need braces inside raw
+            ("system", "Use this chat history for context:\n{{ chat_history }}"),
+            ("human", "{user_input}"),
+            MessagesPlaceholder("agent_scratchpad"),
+        ],
+        template_format="jinja2",
+    )
 
     model = init_chat_model(
         model="openai/gpt-4.1-2025-04-14",
-        model_provider="openai", 
+        model_provider="openai",
         api_key=os.getenv("MODEL_API_KEY"),
+        base_url="https://api.aimlapi.com/v1",
         temperature=0.3,
         max_tokens=2000,
-        base_url="https://api.aimlapi.com/v1"
+        # Add retry and rate limiting
+        model_kwargs={
+            "timeout": 60,
+            "max_retries": 3,
+        }
     )
 
     agent = create_tool_calling_agent(model, coral_tools, prompt)
-    executor = AgentExecutor(agent=agent, tools=coral_tools, verbose=True, handle_parsing_errors=True)
-    
+    executor = AgentExecutor(
+        agent=agent,
+        tools=coral_tools,
+        verbose=True,
+        handle_parsing_errors=True,
+        max_iterations=5,  # Reduce iterations to avoid long loops
+        early_stopping_method="generate",
+        return_intermediate_steps=False,  # Simplify output
+    )
     return executor
 
 async def get_user_input(runtime: str, agent_tools: Dict[str, Any]) -> str:
@@ -272,7 +287,12 @@ async def main():
                 
             except Exception as e:
                 logger.error(f"Error in agent loop: {str(e)}")
-                await asyncio.sleep(5)
+                # Add exponential backoff for rate limiting
+                if "401" in str(e) or "429" in str(e):
+                    logger.info("Rate limit hit, waiting longer...")
+                    await asyncio.sleep(10)
+                else:
+                    await asyncio.sleep(5)
                 
     except Exception as e:
         logger.error(f"Fatal error in main: {str(e)}")
