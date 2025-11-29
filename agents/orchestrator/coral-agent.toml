@@ -1,0 +1,31 @@
+[agent]
+name = "geospot-orchestrator"
+version = "0.1.0"
+description = "GeoSpot orchestrator agent that coordinates location analysis workflow and interfaces with users"
+
+[options.MODEL_API_KEY]
+type = "string"
+description = "AIML API key for LLM access"
+
+[options.MODEL_NAME]
+type = "string"
+description = "Model to use (e.g. 'openai/gpt-4.1-2025-04-14')"
+default = "openai/gpt-4.1-2025-04-14"
+
+[options.MODEL_PROVIDER]
+type = "string"
+description = "Model provider"
+default = "openai"
+
+[options.MODEL_TEMPERATURE]
+type = "string"
+description = "Model temperature"
+default = "0.1"
+
+[options.MODEL_TOKEN_LIMIT]
+type = "string"
+description = "Max tokens"
+default = "8000"
+
+[runtimes.executable]
+command = ["uv", "run", "python", "main.py"]

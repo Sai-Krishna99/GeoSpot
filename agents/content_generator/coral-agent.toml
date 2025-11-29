@@ -1,0 +1,21 @@
+[agent]
+name = "geospot-content-generator"
+version = "0.1.0"
+description = "GeoSpot content generator that creates narratives and audio briefings using AIML API"
+
+[options.MODEL_API_KEY]
+type = "string"
+description = "AIML API key for text and voice generation"
+
+[options.MODEL_NAME]
+type = "string"
+description = "Model to use for text generation"
+default = "openai/gpt-4.1-2025-04-14"
+
+[options.VOICE_MODEL]
+type = "string"
+description = "ElevenLabs voice model"
+default = "eleven-multilingual-v2"
+
+[runtimes.executable]
+command = ["uv", "run", "python", "main.py"]
